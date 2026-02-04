@@ -1,3 +1,5 @@
+import 'package:billing_client/models/technisian.dart';
+import 'package:billing_client/services/ticket_service.dart';
 import 'package:flutter/material.dart';
 
 class LaporanFormPage extends StatefulWidget {
@@ -12,9 +14,14 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
 
   String? tipeProblem;
   String? priority;
-  String? teknisi;
+  String? teknisiId;
 
   final TextEditingController problemController = TextEditingController();
+
+  bool isLoadingTechnisian = false;
+  bool isSubmitting = false;
+
+  List<TechnisianModel> technisianList = [];
 
   final List<String> tipeProblemList = [
     "Modem Problem",
@@ -30,40 +37,88 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
     "Critical",
   ];
 
-  final List<String> teknisiList = [
-    "Semua Teknisi",
-    "Teknisi A",
-    "Teknisi B",
-    "Teknisi C",
-  ];
+  @override
+  void initState() {
+    super.initState();
+    fetchTechnisian();
+  }
+
+  @override
+  void dispose() {
+    problemController.dispose();
+    super.dispose();
+  }
 
   // ============================================================
-  // SUBMIT FUNCTION
+  // FETCH TEKNISI
+  // ============================================================
+  Future<void> fetchTechnisian() async {
+    setState(() => isLoadingTechnisian = true);
+
+    try {
+      final res = await TicketService().getTechnisian(idMitra: 750);
+
+      final list = res.data;
+
+      technisianList = [
+        TechnisianModel(idTeknisi: null, name: 'Semua Teknisi'),
+        ...list,
+      ];
+    } catch (e) {
+      showToast(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => isLoadingTechnisian = false);
+      }
+    }
+  }
+
+  // ============================================================
+  // SUBMIT
   // ============================================================
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (isSubmitting) return;
 
-    final payload = {
-      "type_problem": tipeProblem,
-      "priority": priority,
-      "teknisi": teknisi,
-      "problem_desc": problemController.text,
-    };
+    setState(() => isSubmitting = true);
 
-    print("Submit Payload : $payload");
+    try {
+      await TicketService().store(
+        idClient: 35557, // sesuaikan dari auth / session
+        idMitra: 750,
+        tipeProblem: tipeProblem!,
+        idTeknisi: teknisiId ?? '',
+        difficulty: priority!,
+        problem: problemController.text,
+      );
 
-    // TODO: Call API here
-    // await Api.post("/laporan/create", payload);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Laporan berhasil dibuat")),
-    );
-
-    Navigator.pop(context); // kembali ke list page
+      // callback ke page sebelumnya
+      Navigator.pop(context, true);
+    } catch (e) {
+      showToast(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
+    }
   }
 
-  // WIDGET DROPDOWN
-  Widget buildDropdown({
+  // ============================================================
+  // TOAST
+  // ============================================================
+  void showToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade600,
+      ),
+    );
+  }
+
+  // ============================================================
+  // DROPDOWN STRING
+  // ============================================================
+  Widget buildDropdownString({
     required String label,
     required String? value,
     required List<String> items,
@@ -74,23 +129,49 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 1),
+        border: Border.all(color: Colors.black),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           border: InputBorder.none,
         ),
-        icon: const Icon(Icons.arrow_drop_down, size: 30),
         items: items
-            .map((e) => DropdownMenuItem(
-          value: e,
-          child: Text(e),
-        ))
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
             .toList(),
         onChanged: onChanged,
         validator: (val) => val == null ? "$label wajib dipilih" : null,
+      ),
+    );
+  }
+
+  // ============================================================
+  // DROPDOWN TEKNISI
+  // ============================================================
+  Widget buildDropdownTechnisian() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.black),
+      ),
+      child: DropdownButtonFormField<String?>(
+        initialValue: teknisiId,
+        decoration: const InputDecoration(
+          labelText: "Pilih Teknisi",
+          border: InputBorder.none,
+        ),
+        items: technisianList
+            .map(
+              (e) => DropdownMenuItem<String?>(
+            value: e.idTeknisi,
+            child: Text(e.name),
+          ),
+        )
+            .toList(),
+        onChanged: (v) => setState(() => teknisiId = v),
       ),
     );
   }
@@ -104,44 +185,39 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
         elevation: 1,
         foregroundColor: Colors.black,
       ),
-
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Tipe Problem
-              buildDropdown(
+              buildDropdownString(
                 label: "Tipe Problem",
                 value: tipeProblem,
                 items: tipeProblemList,
                 onChanged: (v) => setState(() => tipeProblem = v),
               ),
 
-              // Priority
-              buildDropdown(
+              buildDropdownString(
                 label: "Priority",
                 value: priority,
                 items: priorityList,
                 onChanged: (v) => setState(() => priority = v),
               ),
 
-              // Pilih Teknisi
-              buildDropdown(
-                label: "Pilih Teknisi",
-                value: teknisi,
-                items: teknisiList,
-                onChanged: (v) => setState(() => teknisi = v),
-              ),
+              isLoadingTechnisian
+                  ? const Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              )
+                  : buildDropdownTechnisian(),
 
-              // TextArea Problem
               Container(
                 margin: const EdgeInsets.only(bottom: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.black, width: 1),
+                  border: Border.all(color: Colors.black),
                 ),
                 child: TextFormField(
                   controller: problemController,
@@ -155,24 +231,34 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
                 ),
               ),
 
-              // Button di kanan bawah
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   ElevatedButton(
-                    onPressed: submit,
+                    onPressed: isSubmitting ? null : submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.lightBlue,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                     ),
-                    child: const Text(
+                    child: isSubmitting
+                        ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                        : const Text(
                       "Buat Laporan",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),

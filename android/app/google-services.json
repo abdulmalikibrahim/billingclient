@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "175392576121",
+    "project_id": "globalsmartapp-e5e08",
+    "storage_bucket": "globalsmartapp-e5e08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:175392576121:android:70d6f74f3c933213a6faa8",
+        "android_client_info": {
+          "package_name": "com.globalsmartapp.client.billing_client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-kSOfuOcCrIOYhcthmfLYH_6FgXic-ao"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

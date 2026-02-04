@@ -1,4 +1,9 @@
+import 'package:billing_client/models/transaction.dart';
+import 'package:billing_client/services/transaction_service.dart';
+import 'package:billing_client/utils/helper.dart';
+import 'package:billing_client/utils/secure_session_service.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -7,92 +12,68 @@ class HistoryPage extends StatefulWidget {
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
-List<Map<String, dynamic>> items = [
-  {
-    "date": "16 Juni 2023, 13:13",
-    "invoice": "230616.131310.250",
-    "amount": 250000,
-    "method": "BANK TRANSFER PERTAMA",
-    "status": "Sukses",
-    // OPSIONAL DETAIL (boleh dihapus jika tidak mau)
-    "paket": "10Mbps-100",
-    "durasi": "1 Bulan",
-    "tagihan": "Rp 100.000",
-    "ppn": "Rp 11.000",
-    "discount": "Rp 5.000",
-    "biaya_lain": "Rp 11.000",
-    "method_detail": "BANK TRANSFER",
-    "nomor_tujuan": "-",
-    "penerima": "Abdul Malik",
-    "aktif_sampai": "01 Oct 2025",
-    "keterangan": "Invoice PSB",
-    "id":"001",
-    "grand_total":"100.000",
-  },
-  {
-    "date": "16 Juli 2023, 13:13",
-    "invoice": "230716.131310.250",
-    "amount": 250000,
-    "method": "BANK TRANSFER PERTAMA",
-    "status": "Failed",
-    // OPSIONAL DETAIL (boleh dihapus jika tidak mau)
-    "paket": "10Mbps-100",
-    "durasi": "1 Bulan",
-    "tagihan": "Rp 100.000",
-    "ppn": "Rp 11.000",
-    "discount": "Rp 5.000",
-    "biaya_lain": "Rp 11.000",
-    "method_detail": "BANK TRANSFER",
-    "nomor_tujuan": "-",
-    "penerima": "Abdul Malik",
-    "aktif_sampai": "01 Oct 2025",
-    "keterangan": "Invoice PSB",
-    "id":"001",
-    "grand_total":"100.000",
-  },
-  {
-    "date": "16 Juli 2023, 13:13",
-    "invoice": "230716.131310.250",
-    "amount": 250000,
-    "method": "COUNTER",
-    "status": "Belum Bayar",
-    // OPSIONAL DETAIL (boleh dihapus jika tidak mau)
-    "paket": "10Mbps-100",
-    "durasi": "1 Bulan",
-    "tagihan": "Rp 100.000",
-    "ppn": "Rp 11.000",
-    "discount": "Rp 5.000",
-    "biaya_lain": "Rp 11.000",
-    "method_detail": "BANK TRANSFER",
-    "nomor_tujuan": "-",
-    "penerima": "Abdul Malik",
-    "aktif_sampai": "01 Oct 2025",
-    "keterangan": "Invoice PSB",
-    "id":"001",
-    "grand_total":"100.000",
-  },
-  {
-    "date": "16 Juli 2023, 13:13",
-    "invoice": "230716.131310.250",
-    "amount": 250000,
-    "method": "COUNTER",
-    "status": "Belum Bayar",
-    "paket": "10Mbps-100",
-    "durasi": "1 Bulan",
-    "tagihan": "Rp 100.000",
-    "ppn": "Rp 11.000",
-    "discount": "Rp 5.000",
-    "biaya_lain": "Rp 11.000",
-    "method_detail": "BANK TRANSFER",
-    "nomor_tujuan": "-",
-    "penerima": "Abdul Malik",
-    "aktif_sampai": "01 Oct 2025",
-    "keterangan": "Invoice PSB",
-    "id":"001",
-    "grand_total":"100.000",
-  },
-];
 class _HistoryPageState extends State<HistoryPage> {
+
+  Map<String, dynamic>? session;
+  bool isLoading = true;
+  final helper = Helper();
+
+  final TransactionService transactionService = TransactionService();
+  bool isLoadingTransaction = true;
+  List<TransactionModel> transactions = [];
+
+  Future<void> _init() async {
+    final data = await SecureSessionService.getSession();
+
+    if (!mounted) return;
+
+    if (data == null) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+            (_) => false,
+      );
+      return;
+    }
+
+    // ✅ SESSION ADA
+    setState(() {
+      session = data;
+      isLoading = false;
+    });
+
+    await _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    try {
+      final result = await transactionService.index(
+        idClient: session!['id_client'].toString(),
+        idMitra: session!['id_mitra'].toString(),
+        limit: '5',
+        order: 'desc',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        transactions = result.data;
+        isLoadingTransaction = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoadingTransaction = false;
+      });
+
+      Fluttertoast.showToast(
+        msg: e.toString().replaceAll('Exception: ', ''),
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+  }
 
   Future<void> onRefresh() async {
     await Future.delayed(const Duration(milliseconds: 800));
@@ -110,6 +91,13 @@ class _HistoryPageState extends State<HistoryPage> {
       default:
         return Colors.grey;
     }
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _init();
   }
 
   @override
@@ -138,18 +126,21 @@ class _HistoryPageState extends State<HistoryPage> {
       // Body + Pull to Refresh
       body: RefreshIndicator(
         onRefresh: onRefresh,
-        child: ListView.builder(
+        child: isLoadingTransaction
+            ? const Center(child: CircularProgressIndicator()) : ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          itemCount: items.length,
+          itemCount: transactions.length,
           itemBuilder: (context, index) {
-            final item = items[index];
+            final item = transactions[index];
 
             return InkWell(
               onTap: () {
                 Navigator.pushNamed(
                   context,
                   '/history-detail',
-                  arguments: item, // <= kirim data ke detail
+                  arguments: {
+                    'id': item.idInvoice
+                  }, // <= kirim data ke detail
                 );
               },
               borderRadius: BorderRadius.circular(12),
@@ -174,9 +165,9 @@ class _HistoryPageState extends State<HistoryPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(item["date"], style: const TextStyle(fontSize: 12)),
+                        Text(helper.formatTanggalIndo(item.tanggal), style: const TextStyle(fontSize: 12)),
                         Text(
-                          "Invoice : ${item["invoice"]}",
+                          "Invoice : #${item.token}",
                           style: const TextStyle(fontSize: 12),
                         ),
                       ],
@@ -186,7 +177,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
                     // Amount
                     Text(
-                      "Rp${item["amount"]}",
+                      helper.formatRupiah(item.nominal),
                       style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -201,7 +192,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          item["method"],
+                          item.jenisPembayaran,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -211,11 +202,11 @@ class _HistoryPageState extends State<HistoryPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
-                            color: badgeColor(item["status"]),
+                            color: badgeColor(item.status),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            item["status"],
+                            item.status,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

@@ -1,12 +1,22 @@
+import 'package:billing_client/utils/helper.dart';
 import 'package:flutter/material.dart';
 
-class NotificationDetailPage extends StatelessWidget {
+import '../models/notification.dart';
+
+class NotificationDetailPage extends StatefulWidget {
   const NotificationDetailPage({super.key});
+
+  @override
+  State<NotificationDetailPage> createState() => _NotificationDetailPage();
+}
+
+class _NotificationDetailPage extends State<NotificationDetailPage> {
 
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)!.settings.arguments;
-    final Map data = args is Map ? args : {};
+    final LocalNotification? data = args is LocalNotification ? args : null;
+    final helper = Helper();
 
     return Scaffold(
       appBar: AppBar(
@@ -15,14 +25,18 @@ class NotificationDetailPage extends StatelessWidget {
         elevation: 1,
         foregroundColor: Colors.black,
       ),
-
-      body: SingleChildScrollView(
+      body: data == null
+          ? const Center(child: Text("Data notifikasi tidak tersedia"))
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // =======================
+            // TITLE
+            // =======================
             Text(
-              data["title"] ?? "Detail Notifikasi",
+              data.title,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -31,33 +45,38 @@ class NotificationDetailPage extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  data["date"] ?? "-",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                  ),
-                ),
-                Text(
-                  data["status"] ?? "-",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            // =======================
+            // DATE
+            // =======================
+            Text(
+              helper.formatTanggalIndo(data.createdAt.toString()),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black54,
+              ),
             ),
 
             const SizedBox(height: 20),
 
+            // =======================
+            // IMAGE (OPTIONAL)
+            // =======================
+            if (data.image != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(data.image!),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // =======================
+            // DESCRIPTION
+            // =======================
             Text(
-              data["description"] ?? "",
+              data.description,
               style: const TextStyle(
                 fontSize: 15,
-                height: 1.4,
+                height: 1.5,
               ),
             ),
           ],

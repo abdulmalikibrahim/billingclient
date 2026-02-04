@@ -1,3 +1,4 @@
+import 'package:billing_client/utils/secure_session_service.dart';
 import 'package:flutter/material.dart';
 
 class SplashscreenPage extends StatefulWidget {
@@ -12,26 +13,46 @@ class _SplashscreenPageState extends State<SplashscreenPage> {
   void initState() {
     super.initState();
 
-    // Pindah halaman setelah 2 detik
-    Future.delayed(const Duration(seconds: 7), () {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
-    });
+    _handleNavigation();
+  }
+
+  Future<void> _handleNavigation() async {
+    // simpan navigator sebelum async gap
+    final navigator = Navigator.of(context);
+
+    // splash delay
+    await Future.delayed(const Duration(seconds: 4));
+
+    if (!mounted) return;
+
+    final isLogin = await SecureSessionService.isLogin();
+
+    if (!mounted) return;
+
+    if (isLogin) {
+      navigator.pushNamedAndRemoveUntil(
+        '/home', (route) => false,
+      );
+    } else {
+      navigator.pushNamedAndRemoveUntil(
+        '/login', (route) => false,
+      );
+    }
+
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // warna background
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // === Gambar PNG Logo ===
             SizedBox(
               width: 150,
               child: Image.asset(
-                'assets/images/logo_global.png',  // <--- ganti sesuai nama file PNG kamu
+                'assets/images/logo_global.png',
                 fit: BoxFit.contain,
               ),
             ),
