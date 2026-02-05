@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
@@ -27,10 +28,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('🔔 body: ${message.notification?.body}');
   debugPrint('🔔 data: ${message.data}');
 
+  // 🔥 CRITICAL: Initialize Firebase di background isolate
+  try {
+    await Firebase.initializeApp();
+    debugPrint('🔔 Firebase initialized in background handler');
+  } catch (e) {
+    debugPrint('⚠️ Firebase already initialized or failed: $e');
+  }
+
   // Extract data
   final notification = message.notification;
   final data = Map<String, dynamic>.from(message.data);
-  
+
   if (notification != null) {
     data['title'] ??= notification.title;
     data['body'] ??= notification.body;
@@ -38,31 +47,98 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   if (data.isNotEmpty) {
     debugPrint('🔔 Saving notification to local DB from background...');
-    
-    // Save ke local DB
-    final notif = LocalNotification(
-      title: data['title'] ?? '-',
-      description: data['body'] ?? '',
-      image: data['image'],
-      createdAt: DateTime.now(),
+
+    try {
+      // Save ke local DB
+      final notif = LocalNotification(
+        title: data['title'] ?? '-',
+        description: data['body'] ?? '',
+        image: data['image'],
+        createdAt: DateTime.now(),
+      );
+
+      final insertedId = await NotificationDB.instance.insert(notif);
+      debugPrint('🔔 Notification saved successfully, id: $insertedId');
+
+      // Get total unread count
+      final totalUnread = await NotificationDB.instance.countUnread();
+      debugPrint('🔔 Total unread notifications: $totalUnread');
+
+      // Update badge di launcher icon
+      try {
+        if (totalUnread > 0) {
+          await FlutterAppBadger.updateBadgeCount(totalUnread);
+          debugPrint('🔔 Badge updated to $totalUnread from background handler');
+        } else {
+          await FlutterAppBadger.removeBadge();
+          debugPrint('🔔 Badge removed (count = 0)');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to update badge from background: $e');
+      }
+
+      // Show local notification untuk memastikan notif muncul
+      await _showBackgroundLocalNotification(data, insertedId, totalUnread);
+
+    } catch (e) {
+      debugPrint('⚠️ Failed to save notification in background: $e');
+    }
+  }
+}
+
+/// Helper untuk show local notification dari background handler
+Future<void> _showBackgroundLocalNotification(
+  Map<String, dynamic> data,
+  int notifId,
+  int unreadCount,
+) async {
+  try {
+    final FlutterLocalNotificationsPlugin localNotif =
+        FlutterLocalNotificationsPlugin();
+
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const settings = InitializationSettings(android: android);
+
+    await localNotif.initialize(
+      settings,
+      onDidReceiveNotificationResponse: notificationTapBackground,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
-    final insertedId = await NotificationDB.instance.insert(notif);
-    debugPrint('🔔 Notification saved successfully, id: $insertedId');
-    
-    // Get total unread count
-    final totalUnread = await NotificationDB.instance.countUnread();
-    debugPrint('🔔 Total unread notifications: $totalUnread');
-    
-    // Update badge di launcher icon
-    try {
-      if (totalUnread > 0) {
-        await FlutterAppBadger.updateBadgeCount(totalUnread);
-        debugPrint('🔔 Badge updated to $totalUnread from background handler');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Failed to update badge from background: $e');
-    }
+    // Buat notification channel
+    const channel = AndroidNotificationChannel(
+      'billing_client_channel',
+      'Billing Client Notifications',
+      importance: Importance.high,
+      showBadge: true,
+    );
+
+    await localNotif
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // Show notification
+    final androidDetails = AndroidNotificationDetails(
+      'billing_client_channel',
+      'Billing Client Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      number: unreadCount,
+      channelShowBadge: true,
+    );
+
+    await localNotif.show(
+      notifId,
+      data['title'],
+      data['body'],
+      NotificationDetails(android: androidDetails),
+      payload: jsonEncode({'id': notifId, 'type': 'notification'}),
+    );
+
+    debugPrint('🔔 Local notification shown from background handler');
+  } catch (e) {
+    debugPrint('⚠️ Failed to show local notification from background: $e');
   }
 }
 
