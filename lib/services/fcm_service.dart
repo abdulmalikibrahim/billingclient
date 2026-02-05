@@ -40,6 +40,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final notification = message.notification;
   final data = Map<String, dynamic>.from(message.data);
 
+  // Cek apakah FCM sudah punya notification payload
+  // Jika ya, Android akan otomatis menampilkan notifikasi
+  final bool hasNotificationPayload = notification != null;
+
   if (notification != null) {
     data['title'] ??= notification.title;
     data['body'] ??= notification.body;
@@ -79,8 +83,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         debugPrint('⚠️ Failed to update badge from background: $e');
       }
 
-      // Show local notification untuk memastikan notif muncul
-      await _showBackgroundLocalNotification(data, insertedId, totalUnread);
+      // 🔥 PENTING: Hanya tampilkan local notification jika FCM TIDAK punya notification payload
+      // Jika FCM sudah punya notification payload, Android otomatis menampilkannya
+      // Menampilkan local notification lagi akan menyebabkan DUPLIKAT
+      if (!hasNotificationPayload) {
+        debugPrint('🔔 Data-only message, showing local notification...');
+        await _showBackgroundLocalNotification(data, insertedId, totalUnread);
+      } else {
+        debugPrint('🔔 FCM has notification payload, skipping local notification (Android auto-displays it)');
+      }
     } catch (e) {
       debugPrint('⚠️ Failed to save notification in background: $e');
     }
