@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../models/notification.dart';
@@ -14,6 +15,54 @@ Map<String, dynamic>? pendingNotificationData;
 void notificationTapBackground(NotificationResponse response) {
   if (response.payload != null) {
     pendingNotificationData = jsonDecode(response.payload!);
+  }
+}
+
+/// Background message handler - dijalankan saat app terminated/background
+/// PENTING: Harus di-setup di main() sebelum Firebase.initializeApp()
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('🔔 BACKGROUND/TERMINATED MESSAGE RECEIVED');
+  debugPrint('🔔 title: ${message.notification?.title}');
+  debugPrint('🔔 body: ${message.notification?.body}');
+  debugPrint('🔔 data: ${message.data}');
+
+  // Extract data
+  final notification = message.notification;
+  final data = Map<String, dynamic>.from(message.data);
+  
+  if (notification != null) {
+    data['title'] ??= notification.title;
+    data['body'] ??= notification.body;
+  }
+
+  if (data.isNotEmpty) {
+    debugPrint('🔔 Saving notification to local DB from background...');
+    
+    // Save ke local DB
+    final notif = LocalNotification(
+      title: data['title'] ?? '-',
+      description: data['body'] ?? '',
+      image: data['image'],
+      createdAt: DateTime.now(),
+    );
+
+    final insertedId = await NotificationDB.instance.insert(notif);
+    debugPrint('🔔 Notification saved successfully, id: $insertedId');
+    
+    // Get total unread count
+    final totalUnread = await NotificationDB.instance.countUnread();
+    debugPrint('🔔 Total unread notifications: $totalUnread');
+    
+    // Update badge di launcher icon
+    try {
+      if (totalUnread > 0) {
+        await FlutterAppBadger.updateBadgeCount(totalUnread);
+        debugPrint('🔔 Badge updated to $totalUnread from background handler');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to update badge from background: $e');
+    }
   }
 }
 
@@ -140,6 +189,9 @@ class FCMService {
         int totalUnread = await NotificationDB.instance.countUnread();
         debugPrint('🔔 totalUnread: $totalUnread');
         _showLocalNotification(data, insertedId, totalUnread);
+        
+        // Update badge di icon launcher
+        _updateBadgeCount(totalUnread);
 
         // Notify listener (HomePage) untuk update badge
         debugPrint('🔔 Calling onNotificationReceived callback...');
@@ -212,6 +264,36 @@ class FCMService {
 
   Future<void> clearAllSystemNotifications() async {
     await _localNotif.cancelAll();
+  }
+
+  /// UPDATE BADGE di launcher icon
+  Future<void> _updateBadgeCount(int count) async {
+    try {
+      if (count > 0) {
+        await FlutterAppBadger.updateBadgeCount(count);
+        debugPrint('🔔 Badge count updated to: $count');
+      } else {
+        await FlutterAppBadger.removeBadge();
+        debugPrint('🔔 Badge removed');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to update badge: $e');
+    }
+  }
+
+  /// PUBLIC METHOD - Update badge di launcher icon
+  Future<void> updateBadgeCount(int count) async {
+    await _updateBadgeCount(count);
+  }
+
+  /// PUBLIC METHOD - Clear badge di launcher icon
+  Future<void> clearBadge() async {
+    try {
+      await FlutterAppBadger.removeBadge();
+      debugPrint('🔔 Badge cleared');
+    } catch (e) {
+      debugPrint('⚠️ Failed to clear badge: $e');
+    }
   }
 
   /// ROUTING

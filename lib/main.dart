@@ -22,6 +22,10 @@ Future<void> main () async {
 
   await initializeDateFormatting('id_ID', null);
   await loadEnv();
+  
+  // 🔥 PENTING: Setup background handler SEBELUM Firebase.initializeApp()
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  
   await Firebase.initializeApp();
 
   runApp(const MyApp());

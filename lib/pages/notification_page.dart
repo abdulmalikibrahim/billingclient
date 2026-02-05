@@ -19,6 +19,16 @@ class _NotificationPageState extends State<NotificationPage> {
   void initState() {
     super.initState();
     loadData();
+    _syncBadgeCount(); // Sync badge dengan unread count
+  }
+
+  Future<void> _syncBadgeCount() async {
+    final unreadCount = await NotificationDB.instance.countUnread();
+    if (unreadCount > 0) {
+      await FCMService.instance.updateBadgeCount(unreadCount);
+    } else {
+      await FCMService.instance.clearBadge();
+    }
   }
 
   Future<void> loadData() async {
@@ -60,10 +70,13 @@ class _NotificationPageState extends State<NotificationPage> {
                 // 1️⃣ Tandai semua dibaca di DB
                 await NotificationDB.instance.markAllAsRead();
 
-                // 2️⃣ Clear semua notification Android (HILANGKAN BADGE)
+                // 2️⃣ Clear semua notification Android
                 await FCMService.instance.clearAllSystemNotifications();
 
-                // 3️⃣ Refresh UI
+                // 3️⃣ Clear badge di launcher icon
+                await FCMService.instance.clearBadge();
+
+                // 4️⃣ Refresh UI
                 loadData();
               },
               child: const Text("Tandai semua dibaca"),
