@@ -68,7 +68,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       try {
         if (totalUnread > 0) {
           await FlutterAppBadger.updateBadgeCount(totalUnread);
-          debugPrint('🔔 Badge updated to $totalUnread from background handler');
+          debugPrint(
+            '🔔 Badge updated to $totalUnread from background handler',
+          );
         } else {
           await FlutterAppBadger.removeBadge();
           debugPrint('🔔 Badge removed (count = 0)');
@@ -79,7 +81,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
       // Show local notification untuk memastikan notif muncul
       await _showBackgroundLocalNotification(data, insertedId, totalUnread);
-
     } catch (e) {
       debugPrint('⚠️ Failed to save notification in background: $e');
     }
@@ -100,7 +101,7 @@ Future<void> _showBackgroundLocalNotification(
     const settings = InitializationSettings(android: android);
 
     await localNotif.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: notificationTapBackground,
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
@@ -115,7 +116,8 @@ Future<void> _showBackgroundLocalNotification(
 
     await localNotif
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // Show notification
@@ -129,10 +131,10 @@ Future<void> _showBackgroundLocalNotification(
     );
 
     await localNotif.show(
-      notifId,
-      data['title'],
-      data['body'],
-      NotificationDetails(android: androidDetails),
+      id: notifId,
+      title: data['title'],
+      body: data['body'],
+      notificationDetails: NotificationDetails(android: androidDetails),
       payload: jsonEncode({'id': notifId, 'type': 'notification'}),
     );
 
@@ -265,7 +267,7 @@ class FCMService {
         int totalUnread = await NotificationDB.instance.countUnread();
         debugPrint('🔔 totalUnread: $totalUnread');
         _showLocalNotification(data, insertedId, totalUnread);
-        
+
         // Update badge di icon launcher
         _updateBadgeCount(totalUnread);
 
