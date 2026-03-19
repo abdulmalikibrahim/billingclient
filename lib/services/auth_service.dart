@@ -35,6 +35,9 @@ class AuthService {
         throw Exception(response.data['msg']);
       }
 
+      // Simpan seluruh data session ke secure storage
+      // Fields yang disimpan: id_client, id_mitra, id_mikrotik, logo,
+      // link_payment, link_acs (bisa null), dll
       await SecureSessionService.saveSession(
         response.data['data'],
       );

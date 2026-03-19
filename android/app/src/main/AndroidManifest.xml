@@ -42,7 +42,7 @@
     <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_WRITE"/>
 
     <application
-        android:label="billing_client"
+        android:label="Billing Client"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

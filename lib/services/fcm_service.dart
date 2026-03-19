@@ -90,7 +90,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         debugPrint('🔔 Data-only message, showing local notification...');
         await _showBackgroundLocalNotification(data, insertedId, totalUnread);
       } else {
-        debugPrint('🔔 FCM has notification payload, skipping local notification (Android auto-displays it)');
+        debugPrint(
+          '🔔 FCM has notification payload, skipping local notification (Android auto-displays it)',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ Failed to save notification in background: $e');
@@ -108,7 +110,7 @@ Future<void> _showBackgroundLocalNotification(
     final FlutterLocalNotificationsPlugin localNotif =
         FlutterLocalNotificationsPlugin();
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('@mipmap/ic_notification');
     const settings = InitializationSettings(android: android);
 
     await localNotif.initialize(
@@ -219,7 +221,7 @@ class FCMService {
 
   /// LOCAL NOTIF INIT
   Future<void> _initLocalNotification() async {
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('@mipmap/ic_notification');
 
     const ios = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -340,6 +342,7 @@ class FCMService {
       priority: Priority.high,
       number: unreadCount,
       channelShowBadge: true,
+      icon: '@mipmap/ic_notification',
     );
 
     await _localNotif.show(

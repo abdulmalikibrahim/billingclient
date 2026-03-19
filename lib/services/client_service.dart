@@ -34,6 +34,8 @@ class ClientService {
             'Authorization': 'Bearer $bearerToken',
             'Content-Type': 'multipart/form-data',
           },
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
         ),
       );
 
@@ -45,9 +47,19 @@ class ClientService {
         response.data, (json) => ClientModel.fromJson(json),
       );
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['msg'] ?? 'gagal mendapatkan detail client',
-      );
+      // Handle response yang bukan JSON
+      final responseData = e.response?.data;
+      String errorMsg = 'gagal mendapatkan detail client';
+
+      if (responseData != null) {
+        if (responseData is Map && responseData['msg'] != null) {
+          errorMsg = responseData['msg'];
+        } else if (responseData is String) {
+          errorMsg = responseData;
+        }
+      }
+
+      throw Exception(errorMsg);
     }
   }
 
@@ -91,9 +103,19 @@ class ClientService {
         response.data, (_) => null,
       );
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['msg'] ?? 'gagal membuat ticket',
-      );
+      // Handle response yang bukan JSON (seperti 502 Bad Gateway)
+      final responseData = e.response?.data;
+      String errorMsg = 'gagal register FCM token';
+
+      if (responseData != null) {
+        if (responseData is Map && responseData['msg'] != null) {
+          errorMsg = responseData['msg'];
+        } else if (responseData is String) {
+          errorMsg = responseData;
+        }
+      }
+
+      throw Exception(errorMsg);
     }
   }
 

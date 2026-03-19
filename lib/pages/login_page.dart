@@ -71,7 +71,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             Text(
-              "Silahkan masuk dengan nomor HP atau ID Login kamu",
+              "Silahkan masuk dengan ID Billing",
               style: TextStyle(fontSize: 24),
             ),
             const SizedBox(height: 32),

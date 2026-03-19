@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:billing_client/models/banner.dart';
+import 'package:billing_client/models/base_response.dart';
 import 'package:billing_client/models/client.dart';
 import 'package:billing_client/models/transaction.dart';
 import 'package:billing_client/services/banner_service.dart';
@@ -31,6 +32,9 @@ class _HomePageState extends State<HomePage> {
 
   bool isLoadingClient = true;
   ClientModel? client;
+  String? clientError; // Untuk menyimpan pesan error client
+  int clientRetryCount = 0; // Untuk menghitung berapa kali retry
+
   bool isLoadingTransaction = true;
   List<TransactionModel> transactions = [];
   bool isLoadingBanner = true;
@@ -98,13 +102,23 @@ class _HomePageState extends State<HomePage> {
 
     FirebaseMessaging.instance.getToken().then((fcmToken) {
       // debugPrint('FCM TOKEN: $fcmToken');
-      clientService.registerFcm(
-        idClient: int.parse(session!['id_client'].toString()),
-        idMitra: int.parse(session!['id_mitra'].toString()),
-        fcmToken: fcmToken ?? '',
-        deviceName: brand,
-        deviceID: deviceID,
-      );
+      clientService
+          .registerFcm(
+            idClient: int.parse(session!['id_client'].toString()),
+            idMitra: int.parse(session!['id_mitra'].toString()),
+            fcmToken: fcmToken ?? '',
+            deviceName: brand,
+            deviceID: deviceID,
+          )
+          .catchError((error) {
+            // Silent fail - jangan crash app jika FCM registration gagal
+            debugPrint('⚠️ FCM Registration Error: $error');
+            return BaseResponse<dynamic>(
+              statusCode: 500,
+              msg: error.toString(),
+              data: null,
+            );
+          });
     });
 
     loadUnreadCount();
@@ -127,19 +141,28 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         client = result.data;
         isLoadingClient = false;
+        clientError = null; // Clear error jika berhasil
+        clientRetryCount = 0; // Reset retry count
       });
     } catch (e) {
       if (!mounted) return;
 
+      final errorMsg = e.toString().replaceAll('Exception: ', '');
+
       setState(() {
         isLoadingClient = false;
+        clientError = errorMsg;
+        clientRetryCount++;
       });
 
-      Fluttertoast.showToast(
-        msg: e.toString().replaceAll('Exception: ', ''),
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-      );
+      // Hanya showToast jika bukan retry
+      if (clientRetryCount <= 1) {
+        Fluttertoast.showToast(
+          msg: errorMsg,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+        );
+      }
     }
   }
 
@@ -206,6 +229,8 @@ class _HomePageState extends State<HomePage> {
       isLoadingClient = true;
       isLoadingTransaction = true;
       isLoadingBanner = true;
+      clientError = null; // Reset error state
+      clientRetryCount = 0; // Reset retry count
     });
     await Future.wait([
       _loadClient(),
@@ -354,52 +379,139 @@ class _HomePageState extends State<HomePage> {
                                   opacity: 0.15,
                                 ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Hai, ${client?.name ?? '-'}",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    "Status Activation",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                  Row(
-                                    children: [
-                                      SvgPicture.asset(
-                                        'assets/images/signal.svg',
-                                        width: 42,
-                                        height: 32,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isClientActive(
-                                              client?.expiredDate ?? '',
-                                            )
-                                            ? 'active'
-                                            : 'isolir',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                              child: isLoadingClient
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Memuat data...",
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 16,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "Paket Internet ${client?.paket ?? ''}\nAktif sampai ${helper.formatTanggalIndo(client?.expiredDate ?? '')}",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                ],
-                              ),
+                                        const SizedBox(height: 12),
+                                        CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      ],
+                                    )
+                                  : clientError != null
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Gagal memuat profil",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          clientError!,
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              isLoadingClient = true;
+                                              clientError = null;
+                                            });
+                                            _loadClient();
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.refresh,
+                                                  size: 16,
+                                                  color: primary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Coba Lagi',
+                                                  style: TextStyle(
+                                                    color: primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Hai, ${client?.name ?? '-'}",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          "Status Activation",
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        Row(
+                                          children: [
+                                            SvgPicture.asset(
+                                              'assets/images/signal.svg',
+                                              width: 42,
+                                              height: 32,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              isClientActive(
+                                                    client?.expiredDate ?? '',
+                                                  )
+                                                  ? 'active'
+                                                  : 'isolir',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Paket Internet ${client?.paket ?? ''}\nAktif sampai ${helper.formatTanggalIndo(client?.expiredDate ?? '')}",
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
 
                             const SizedBox(height: 16),
@@ -538,13 +650,25 @@ class _HomePageState extends State<HomePage> {
                         ),
                         _menuItem(
                           context,
-                          Icons.insert_chart,
-                          "Laporan",
-                          "/laporan",
+                          Icons.headphones,
+                          "Bantuan",
+                          "/support",
                         ),
                         _menuItem(context, Icons.logout, "Logout", "/logout"),
                       ],
                     ),
+
+                    // ============================
+                    // ======== BUTTON ACS =========
+                    // ============================
+                    // Tampilkan button ACS hanya jika link_acs tersedia
+                    if (session?['link_acs'] != null &&
+                        session!['link_acs'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _menuItemWithImage("Modem"),
+                    ],
+
+                    //button acs disini
                   ],
                 ),
               ),
@@ -704,7 +828,7 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).primaryColor,
               borderRadius: BorderRadius.circular(50),
               boxShadow: [
                 BoxShadow(
@@ -714,7 +838,59 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            child: Icon(icon, size: 28, color: Colors.blue),
+            child: Icon(icon, size: 28, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _menuItemWithImage(String label) {
+    return GestureDetector(
+      onTap: () async {
+        final acsLink = session?['link_acs']?.toString() ?? '';
+
+        if (acsLink.isEmpty) {
+          Fluttertoast.showToast(
+            msg: 'Link ACS tidak tersedia',
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+          );
+          return;
+        }
+
+        Navigator.pushNamed(
+          context,
+          '/webview',
+          arguments: {'url': acsLink, 'title': 'ACS'},
+        );
+      },
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor,
+              borderRadius: BorderRadius.circular(50),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: SvgPicture.asset(
+              'assets/images/acs.svg',
+              width: 28,
+              height: 28,
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontSize: 14)),
@@ -824,27 +1000,29 @@ class _HomePageState extends State<HomePage> {
             // =========================
             // KIRI (tanggal + total)
             // =========================
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  date,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    date,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  total,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 6),
+                  Text(
+                    total,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
 
             // =========================
@@ -860,11 +1038,15 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.black87,
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   paymentMethod,
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 const SizedBox(height: 8),
 

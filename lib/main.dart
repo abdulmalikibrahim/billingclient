@@ -2,8 +2,8 @@ import 'package:billing_client/pages/banner_detail.dart';
 import 'package:billing_client/pages/history_detail_page.dart';
 import 'package:billing_client/pages/history_page.dart';
 import 'package:billing_client/pages/home_page.dart';
-import 'package:billing_client/pages/laporan_form.dart';
-import 'package:billing_client/pages/laporan_page.dart';
+import 'package:billing_client/pages/support_form.dart';
+import 'package:billing_client/pages/support_page.dart';
 import 'package:billing_client/pages/login_page.dart';
 import 'package:billing_client/pages/notification_detail_page.dart';
 import 'package:billing_client/pages/notification_page.dart';
@@ -17,15 +17,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-Future<void> main () async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await initializeDateFormatting('id_ID', null);
   await loadEnv();
-  
+
   // 🔥 PENTING: Setup background handler SEBELUM Firebase.initializeApp()
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
+
   await Firebase.initializeApp();
 
   runApp(const MyApp());
@@ -37,11 +37,8 @@ Future<void> loadEnv() async {
   const env = String.fromEnvironment('ENV', defaultValue: 'dev');
 
   await dotenv.load(
-    fileName: env == 'prod'
-        ? 'assets/.env.prod'
-        : 'assets/.env.dev',
+    fileName: env == 'prod' ? 'assets/.env.prod' : 'assets/.env.dev',
   );
-
 }
 
 class MyApp extends StatefulWidget {
@@ -52,7 +49,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   @override
   void initState() {
     super.initState();
@@ -80,8 +76,8 @@ class _MyAppState extends State<MyApp> {
         '/banner-detail': (context) => BannerDetailPage(),
         '/history': (context) => const HistoryPage(),
         '/history-detail': (context) => const HistoryDetailPage(),
-        '/laporan': (context) => const LaporanPage(),
-        '/laporan-form': (context) => const LaporanFormPage(),
+        '/support': (context) => const SupportPage(),
+        '/support-form': (context) => const SupportFormPage(),
         '/notification': (context) => const NotificationPage(),
         '/notification-detail': (context) => const NotificationDetailPage(),
         '/webview': (context) => const WebviewPage(),

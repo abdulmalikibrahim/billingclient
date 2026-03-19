@@ -2,14 +2,14 @@ import 'package:billing_client/models/technisian.dart';
 import 'package:billing_client/services/ticket_service.dart';
 import 'package:flutter/material.dart';
 
-class LaporanFormPage extends StatefulWidget {
-  const LaporanFormPage({super.key});
+class SupportFormPage extends StatefulWidget {
+  const SupportFormPage({super.key});
 
   @override
-  State<LaporanFormPage> createState() => _LaporanFormPageState();
+  State<SupportFormPage> createState() => SupportFormPageState();
 }
 
-class _LaporanFormPageState extends State<LaporanFormPage> {
+class SupportFormPageState extends State<SupportFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   String? tipeProblem;
@@ -30,12 +30,7 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
     "Tagihan / Billing",
   ];
 
-  final List<String> priorityList = [
-    "Low",
-    "Medium",
-    "High",
-    "Critical",
-  ];
+  final List<String> priorityList = ["Low", "Medium", "High", "Critical"];
 
   @override
   void initState() {
@@ -108,10 +103,7 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
   // ============================================================
   void showToast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red.shade600,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red.shade600),
     );
   }
 
@@ -133,10 +125,7 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
       ),
       child: DropdownButtonFormField<String>(
         initialValue: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: InputBorder.none,
-        ),
+        decoration: InputDecoration(labelText: label, border: InputBorder.none),
         items: items
             .map((e) => DropdownMenuItem(value: e, child: Text(e)))
             .toList(),
@@ -166,10 +155,10 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
         items: technisianList
             .map(
               (e) => DropdownMenuItem<String?>(
-            value: e.idTeknisi,
-            child: Text(e.name),
-          ),
-        )
+                value: e.idTeknisi,
+                child: Text(e.name),
+              ),
+            )
             .toList(),
         onChanged: (v) => setState(() => teknisiId = v),
       ),
@@ -207,9 +196,9 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
 
               isLoadingTechnisian
                   ? const Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
-              )
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(),
+                    )
                   : buildDropdownTechnisian(),
 
               Container(
@@ -226,8 +215,9 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
                     hintText: "Masukkan Problem Disini",
                     border: InputBorder.none,
                   ),
-                  validator: (val) =>
-                  val == null || val.isEmpty ? "Deskripsi problem wajib diisi" : null,
+                  validator: (val) => val == null || val.isEmpty
+                      ? "Deskripsi problem wajib diisi"
+                      : null,
                 ),
               ),
 
@@ -245,17 +235,17 @@ class _LaporanFormPageState extends State<LaporanFormPage> {
                     ),
                     child: isSubmitting
                         ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Text(
-                      "Buat Laporan",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                            "Buat Laporan",
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ],
               ),
