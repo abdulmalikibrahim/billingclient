@@ -14,3 +14,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+generate aab/apk file:
+flutter build appbundle --release --dart-define=ENV=production
+flutter build apk --release --dart-define=ENV=production

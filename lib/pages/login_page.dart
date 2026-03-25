@@ -78,13 +78,13 @@ class _LoginPageState extends State<LoginPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Nomor HP / ID Login'),
+                Text('ID Billing'),
                 SizedBox(height: 6),
                 TextField(
                   keyboardType: TextInputType.phone,
                   controller: _usernameController,
                   decoration: InputDecoration(
-                    hintText: 'Cth. 08129011xxxx',
+                    hintText: 'Cth. 12345',
                     border: OutlineInputBorder(),
                   ),
                 ),
