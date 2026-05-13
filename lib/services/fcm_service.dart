@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:billing_client/utils/secure_session_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     debugPrint('🔔 Firebase initialized in background handler');
   } catch (e) {
     debugPrint('⚠️ Firebase already initialized or failed: $e');
+  }
+
+  final isLoggedIn = await SecureSessionService.isLogin();
+  if (!isLoggedIn) {
+    debugPrint('🔔 User not logged in, skipping foreground notification');
+    return;
   }
 
   // Extract data
@@ -170,6 +177,12 @@ class FCMService {
 
   /// INIT
   Future<void> init() async {
+    final isLoggedIn = await SecureSessionService.isLogin();
+    if (!isLoggedIn) {
+      debugPrint('🔔 User not logged in, skipping foreground notification');
+      return;
+    }
+
     await _requestPermission();
     await _initLocalNotification();
     await _getToken();
@@ -266,6 +279,12 @@ class FCMService {
     debugPrint('🔔 FOREGROUND MESSAGE RECEIVED');
     debugPrint('🔔 notification: ${message.notification?.title}');
     debugPrint('🔔 data: ${message.data}');
+
+    final isLoggedIn = await SecureSessionService.isLogin();
+    if (!isLoggedIn) {
+      debugPrint('🔔 User not logged in, skipping foreground notification');
+      return;
+    }
 
     // Ambil data dari notification payload atau data payload
     final Map<String, dynamic> data = _extractNotificationData(message);
